@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String         @id @default(uuid()) @db.Uuid
+  firstName            String
+  lastName             String
+  email                String         @unique
+  cpf                  String         @unique
+  password             String
+  userType             UserType
+  wallet               Wallet? // Changed to lowercase to follow conventions
+  createdAt            DateTime       @default(now())
+  sentTransactions     Transfer[]     @relation("sender")
+  receivedTransactions Transfer[]     @relation("receiver")
+  notifications        Notification[]
+
+  @@map("users")
+}
+
+model Wallet {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  balance   Float    @default(0.0)
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now()) // Added createdAt for audit
+  updatedAt DateTime @updatedAt // Added updatedAt for audit
+
+  @@index([userId])
+  @@map("wallets")
+}
+
+model Transfer {
+  id         String         @id @default(uuid()) @db.Uuid
+  amount     Float
+  senderId   String         @db.Uuid // Added @db.Uuid
+  receiverId String         @db.Uuid // Added @db.Uuid
+  sender     User           @relation(name: "sender", fields: [senderId], references: [id])
+  receiver   User           @relation(name: "receiver", fields: [receiverId], references: [id])
+  createdAt  DateTime       @default(now()) // Added createdAt for audit
+  status     TransferStatus @default(PENDING) // Added status field
+
+  @@map("transfers")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+enum UserType {
+  COMMON
+  MERCHANT
+}
+
+enum TransferStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
